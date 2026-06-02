@@ -670,24 +670,41 @@ img {
 
 .food-slider {
   position: relative;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   padding-bottom: 36px;
   background: transparent;
   cursor: grab;
-  touch-action: pan-y;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  scrollbar-color: var(--red) rgba(43, 45, 47, 0.14);
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
   user-select: none;
 }
 
 .food-slider.is-dragging {
+  scroll-behavior: auto;
   cursor: grabbing;
+}
+
+.food-slider::-webkit-scrollbar {
+  height: 6px;
+}
+
+.food-slider::-webkit-scrollbar-track {
+  background: rgba(43, 45, 47, 0.14);
+}
+
+.food-slider::-webkit-scrollbar-thumb {
+  background: var(--red);
 }
 
 .food-slider_track {
   display: flex;
   gap: 18px;
   align-items: stretch;
-  transform: translateX(0);
-  transition: transform 0.55s var(--ease);
+  width: max-content;
 }
 
 .food-slide {
@@ -698,6 +715,7 @@ img {
   aspect-ratio: 1;
   background: var(--night);
   box-shadow: 0 16px 38px rgba(49, 28, 20, 0.18);
+  scroll-snap-align: start;
 }
 
 .food-slide .img {

@@ -145,15 +145,15 @@ document.addEventListener("keydown", (event) => {
 const foodSlider = document.querySelector("[data-food-slider]");
 
 if (foodSlider) {
-  const track = foodSlider.querySelector("[data-food-track]");
   const slides = Array.from(foodSlider.querySelectorAll(".food-slide"));
   const prevButton = foodSlider.querySelector("[data-food-prev]");
   const nextButton = foodSlider.querySelector("[data-food-next]");
   const dotsWrap = foodSlider.querySelector("[data-food-dots]");
   let current = 0;
   let startX = 0;
-  let diffX = 0;
+  let startScroll = 0;
   let isDragging = false;
+  let rafId = 0;
 
   const dots = slides.map((_, index) => {
     const dot = document.createElement("button");
@@ -172,17 +172,17 @@ if (foodSlider) {
     return slides[1].offsetLeft - slides[0].offsetLeft;
   };
 
-  const getMaxOffset = () => Math.max(0, track.scrollWidth - foodSlider.clientWidth);
+  const getMaxOffset = () => Math.max(0, foodSlider.scrollWidth - foodSlider.clientWidth);
 
   const updateSlider = () => {
-    const offset = Math.min(current * getSlideStep(), getMaxOffset());
-    track.style.transform = `translateX(${-offset}px)`;
     slides.forEach((slide, index) => slide.classList.toggle("is-active", index === current));
     dots.forEach((dot, index) => dot.classList.toggle("is-active", index === current));
   };
 
   const goToSlide = (index) => {
     current = (index + slides.length) % slides.length;
+    const offset = Math.min(current * getSlideStep(), getMaxOffset());
+    foodSlider.scrollTo({ left: offset, behavior: "smooth" });
     updateSlider();
   };
 
@@ -193,10 +193,34 @@ if (foodSlider) {
   prevButton?.addEventListener("click", () => moveSlide(-1));
   nextButton?.addEventListener("click", () => moveSlide(1));
 
+  const updateCurrentFromScroll = () => {
+    const step = getSlideStep();
+    if (!step) {
+      return;
+    }
+
+    const next = Math.min(slides.length - 1, Math.max(0, Math.round(foodSlider.scrollLeft / step)));
+    if (next !== current) {
+      current = next;
+      updateSlider();
+    }
+  };
+
+  const scheduleScrollUpdate = () => {
+    if (rafId) {
+      return;
+    }
+
+    rafId = requestAnimationFrame(() => {
+      rafId = 0;
+      updateCurrentFromScroll();
+    });
+  };
+
   foodSlider.addEventListener("pointerdown", (event) => {
     isDragging = true;
     startX = event.clientX;
-    diffX = 0;
+    startScroll = foodSlider.scrollLeft;
     foodSlider.classList.add("is-dragging");
     foodSlider.setPointerCapture(event.pointerId);
   });
@@ -206,7 +230,7 @@ if (foodSlider) {
       return;
     }
 
-    diffX = event.clientX - startX;
+    foodSlider.scrollLeft = startScroll - (event.clientX - startX);
   });
 
   foodSlider.addEventListener("pointerup", (event) => {
@@ -217,18 +241,17 @@ if (foodSlider) {
     foodSlider.releasePointerCapture(event.pointerId);
     foodSlider.classList.remove("is-dragging");
     isDragging = false;
-
-    if (Math.abs(diffX) > 48) {
-      moveSlide(diffX < 0 ? 1 : -1);
-    }
+    updateCurrentFromScroll();
   });
 
   foodSlider.addEventListener("pointercancel", () => {
     foodSlider.classList.remove("is-dragging");
     isDragging = false;
+    updateCurrentFromScroll();
   });
 
-  window.addEventListener("resize", updateSlider);
+  foodSlider.addEventListener("scroll", scheduleScrollUpdate);
+  window.addEventListener("resize", updateCurrentFromScroll);
 
   updateSlider();
 }
