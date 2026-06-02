@@ -5,14 +5,56 @@ const reserve = document.querySelector(".m-reserve");
 const reserveOpeners = document.querySelectorAll(".js-open_reserve");
 const reserveClose = document.querySelector(".js-reserve-close");
 const year = document.querySelector("#year");
+const notesContainer = document.querySelector("#js-notes");
+const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 body.classList.add("is-loading");
+
+const createNote = () => {
+  if (!notesContainer || body.classList.contains("is-loading")) {
+    return;
+  }
+
+  const note = document.createElement("span");
+  const size = Math.floor(11 + Math.random() * 8);
+  const drift = Math.floor((Math.random() - 0.5) * 180);
+  const duration = (6 + Math.random() * 5).toFixed(1);
+  const rotate = Math.floor(90 + Math.random() * 220);
+  const notes = ["♪", "♩", "🎵"];
+  const colors = [
+    "rgba(208, 67, 55, 0.24)",
+    "rgba(189, 139, 61, 0.3)",
+    "rgba(234, 219, 203, 0.42)",
+  ];
+
+  note.className = "falling-note";
+  note.textContent = notes[Math.floor(Math.random() * notes.length)];
+  note.style.left = `${Math.random() * 100}%`;
+  note.style.setProperty("--size", `${size}px`);
+  note.style.setProperty("--drift", `${drift}px`);
+  note.style.setProperty("--duration", `${duration}s`);
+  note.style.setProperty("--rotate", `${rotate}deg`);
+  note.style.color = colors[Math.floor(Math.random() * colors.length)];
+  notesContainer.appendChild(note);
+
+  note.addEventListener("animationend", () => note.remove(), { once: true });
+};
+
+const startNotes = () => {
+  if (prefersReducedMotion || !notesContainer) {
+    return;
+  }
+
+  createNote();
+  window.setInterval(createNote, 980);
+};
 
 window.addEventListener("load", () => {
   window.setTimeout(() => {
     body.classList.remove("is-loading");
     body.classList.add("is-loaded");
-  }, 600);
+    startNotes();
+  }, 980);
 });
 
 const smoothScrollTo = (targetId) => {
@@ -100,23 +142,96 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-const startSlideshow = (selector, interval) => {
-  const slides = Array.from(document.querySelectorAll(selector));
+const foodSlider = document.querySelector("[data-food-slider]");
 
-  if (slides.length <= 1) {
-    return;
-  }
-
+if (foodSlider) {
+  const track = foodSlider.querySelector("[data-food-track]");
+  const slides = Array.from(foodSlider.querySelectorAll(".food-slide"));
+  const prevButton = foodSlider.querySelector("[data-food-prev]");
+  const nextButton = foodSlider.querySelector("[data-food-next]");
+  const dotsWrap = foodSlider.querySelector("[data-food-dots]");
   let current = 0;
+  let startX = 0;
+  let diffX = 0;
+  let isDragging = false;
 
-  window.setInterval(() => {
-    slides[current].classList.remove("is-active");
-    current = (current + 1) % slides.length;
-    slides[current].classList.add("is-active");
-  }, interval);
-};
+  const dots = slides.map((_, index) => {
+    const dot = document.createElement("button");
+    dot.type = "button";
+    dot.setAttribute("aria-label", `${index + 1}枚目のメニュー写真を表示`);
+    dot.addEventListener("click", () => goToSlide(index));
+    dotsWrap?.appendChild(dot);
+    return dot;
+  });
 
-startSlideshow(".food-slide", 4200);
+  const getSlideStep = () => {
+    if (slides.length < 2) {
+      return slides[0]?.getBoundingClientRect().width || 0;
+    }
+
+    return slides[1].offsetLeft - slides[0].offsetLeft;
+  };
+
+  const getMaxOffset = () => Math.max(0, track.scrollWidth - foodSlider.clientWidth);
+
+  const updateSlider = () => {
+    const offset = Math.min(current * getSlideStep(), getMaxOffset());
+    track.style.transform = `translateX(${-offset}px)`;
+    slides.forEach((slide, index) => slide.classList.toggle("is-active", index === current));
+    dots.forEach((dot, index) => dot.classList.toggle("is-active", index === current));
+  };
+
+  const goToSlide = (index) => {
+    current = (index + slides.length) % slides.length;
+    updateSlider();
+  };
+
+  const moveSlide = (direction) => {
+    goToSlide(current + direction);
+  };
+
+  prevButton?.addEventListener("click", () => moveSlide(-1));
+  nextButton?.addEventListener("click", () => moveSlide(1));
+
+  foodSlider.addEventListener("pointerdown", (event) => {
+    isDragging = true;
+    startX = event.clientX;
+    diffX = 0;
+    foodSlider.classList.add("is-dragging");
+    foodSlider.setPointerCapture(event.pointerId);
+  });
+
+  foodSlider.addEventListener("pointermove", (event) => {
+    if (!isDragging) {
+      return;
+    }
+
+    diffX = event.clientX - startX;
+  });
+
+  foodSlider.addEventListener("pointerup", (event) => {
+    if (!isDragging) {
+      return;
+    }
+
+    foodSlider.releasePointerCapture(event.pointerId);
+    foodSlider.classList.remove("is-dragging");
+    isDragging = false;
+
+    if (Math.abs(diffX) > 48) {
+      moveSlide(diffX < 0 ? 1 : -1);
+    }
+  });
+
+  foodSlider.addEventListener("pointercancel", () => {
+    foodSlider.classList.remove("is-dragging");
+    isDragging = false;
+  });
+
+  window.addEventListener("resize", updateSlider);
+
+  updateSlider();
+}
 
 const revealTargets = document.querySelectorAll(".js-reveal, .js-h2ttl, .js-maskImg, .js-maskImg_text");
 
