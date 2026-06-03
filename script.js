@@ -155,14 +155,10 @@ if (foodSlider) {
   let isDragging = false;
   let rafId = 0;
 
-  const dots = slides.map((_, index) => {
-    const dot = document.createElement("button");
-    dot.type = "button";
-    dot.setAttribute("aria-label", `${index + 1}枚目のメニュー写真を表示`);
-    dot.addEventListener("click", () => goToSlide(index));
-    dotsWrap?.appendChild(dot);
-    return dot;
-  });
+  const counter = document.createElement("span");
+  counter.className = "food-slider_counter";
+  counter.setAttribute("aria-live", "polite");
+  dotsWrap?.appendChild(counter);
 
   const getSlideStep = () => {
     if (slides.length < 2) {
@@ -176,7 +172,7 @@ if (foodSlider) {
 
   const updateSlider = () => {
     slides.forEach((slide, index) => slide.classList.toggle("is-active", index === current));
-    dots.forEach((dot, index) => dot.classList.toggle("is-active", index === current));
+    counter.textContent = `${current + 1} / ${slides.length}`;
   };
 
   const goToSlide = (index) => {
@@ -194,12 +190,23 @@ if (foodSlider) {
   nextButton?.addEventListener("click", () => moveSlide(1));
 
   const updateCurrentFromScroll = () => {
-    const step = getSlideStep();
-    if (!step) {
+    if (!slides.length) {
       return;
     }
 
-    const next = Math.min(slides.length - 1, Math.max(0, Math.round(foodSlider.scrollLeft / step)));
+    const sliderLeft = foodSlider.getBoundingClientRect().left;
+    let next = 0;
+    let closest = Number.POSITIVE_INFINITY;
+
+    slides.forEach((slide, index) => {
+      const distance = Math.abs(slide.getBoundingClientRect().left - sliderLeft);
+
+      if (distance < closest) {
+        closest = distance;
+        next = index;
+      }
+    });
+
     if (next !== current) {
       current = next;
       updateSlider();
